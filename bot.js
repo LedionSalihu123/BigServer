@@ -1,5 +1,5 @@
 const bedrock = require('bedrock-protocol');
-
+ 
 // إعدادات الاتصال بالسيرفر مأخوذة تلقائياً من الصورة المرفقة image_58a8a1.png
 const botOptions = {
   host: 'Bluelightmine.aternos.me', // الـ IP الخاص بسيرفرك
