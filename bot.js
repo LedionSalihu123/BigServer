@@ -15,7 +15,6 @@ let afkInterval = null;
 
 let botRuntimeId = null;
 let botPosition = { x: 0, y: 0, z: 0 };
-let moveToggle = false; 
 
 function startBot() {
   if (retryTimer) clearTimeout(retryTimer);
@@ -27,7 +26,6 @@ function startBot() {
     client = bedrock.createClient(botOptions);
 
     client.on('start_game', (packet) => {
-      // قراءة المعرف وتحويله فوراً لـ BigInt صريح لتفادي أي خلط لاحقاً
       const rawId = packet.runtime_id || packet.entity_id;
       botRuntimeId = typeof rawId === 'bigint' ? rawId : BigInt(rawId);
       
@@ -54,7 +52,7 @@ function startBot() {
       console.log(`[+] دخل ${botOptions.username} إلى السيرفر وهو الآن مستقر!`);
       
       setTimeout(() => {
-        startNaturalAFKLoop();
+        startLookAFKLoop();
       }, 8000);
     });
 
@@ -79,49 +77,42 @@ function startBot() {
   }
 }
 
-function startNaturalAFKLoop() {
+// حلقة الالتفات والتحديق العشوائي (آمنة تماماً من أخطاء الـ BigInt وتمنع الطرد)
+function startLookAFKLoop() {
   if (afkInterval) clearInterval(afkInterval);
 
-  console.log(`[⚙️] تم تفعيل حلقة المشي الصارمة المتوافقة مع بنية البروتوكول.`);
+  console.log(`[⚙️] تم تفعيل حلقة التحديق والالتفات العشوائي الآمنة.`);
 
   afkInterval = setInterval(() => {
     if (!client || !botRuntimeId) return;
 
-    const randomYaw = Math.random() * 360;
-    const randomPitch = (Math.random() * 20) - 10;
-
-    moveToggle = !moveToggle;
-    const offset = moveToggle ? 0.3 : -0.3;
-
-    const naturalMovement = {
-      x: botPosition.x + (Math.sin(randomYaw * Math.PI / 180) * offset),
-      y: botPosition.y,
-      z: botPosition.z + (Math.cos(randomYaw * Math.PI / 180) * offset)
-    };
+    // توليد زوايا رؤية عشوائية طبيعية (التفات يميناً ويساراً وللأعلى والأسفل)
+    const randomYaw = parseFloat(Math.random() * 360);
+    const randomPitch = parseFloat((Math.random() * 30) - 15);
 
     try {
-      // هنا قمنا بتقفيل وتعبئة كل المتغيرات التي قد تسبب حيرة للمكتبة لمنع الـ SizeOf error
+      // إرسال حزمة حركة تعتمد فقط على الالتفات في نفس النقطة بدون تغيير الموقع
       client.queue('move_player', {
         runtime_id: botRuntimeId,
         position: {
-          x: parseFloat(naturalMovement.x) || 0.0,
-          y: parseFloat(naturalMovement.y) || 0.0,
-          z: parseFloat(naturalMovement.z) || 0.0
+          x: parseFloat(botPosition.x),
+          y: parseFloat(botPosition.y),
+          z: parseFloat(botPosition.z)
         },
-        pitch: parseFloat(randomPitch) || 0.0,
-        yaw: parseFloat(randomYaw) || 0.0,
-        head_yaw: parseFloat(randomYaw) || 0.0,
-        mode: 0, 
+        pitch: randomPitch,
+        yaw: randomYaw,
+        head_yaw: randomYaw,
+        mode: 0, // الوضع العادي
         on_ground: true,
-        riding_runtime_id: 0n, 
+        riding_runtime_id: 0n,
         teleport_cause: 0,
         teleport_item_id: 0,
         tick: 0n
       });
     } catch (e) {
-      console.error(`[!] فشل إرسال حزمة المشي التلقائي:`, e.message);
+      console.error(`[!] فشل إرسال حزمة الالتفات:`, e.message);
     }
-  }, 6000); 
+  }, 7000); // تكرار كل 7 ثوانٍ
 }
 
 function triggerRetry() {
