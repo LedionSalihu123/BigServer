@@ -12,15 +12,13 @@ const botOptions = {
 let client = null;
 let retryTimer = null;
 let afkInterval = null;
-
 let botRuntimeId = null;
-let botPosition = { x: 0, y: 0, z: 0 };
 
 function startBot() {
   if (retryTimer) clearTimeout(retryTimer);
   if (afkInterval) clearInterval(afkInterval);
   
-  console.log(`[اتصال] جاري الدخول إلى سيرفر البدروك...`);
+  console.log(`[اتصال] جاري الدخول إلى سيرفر البدروك عبر نظام التفاعل البديل...`);
 
   try {
     client = bedrock.createClient(botOptions);
@@ -28,32 +26,17 @@ function startBot() {
     client.on('start_game', (packet) => {
       const rawId = packet.runtime_id || packet.entity_id;
       botRuntimeId = typeof rawId === 'bigint' ? rawId : BigInt(rawId);
-      
-      if (packet.player_position) {
-        botPosition = { ...packet.player_position };
-      } else if (packet.position) {
-        botPosition = { ...packet.position };
-      }
-      
       console.log(`[معلومات] تم التعرف على معرف البوت بنجاح: ${botRuntimeId.toString()}`);
     });
 
-    client.on('move_player', (packet) => {
-      if (botRuntimeId) {
-        const pId = packet.runtime_id || packet.entity_id;
-        const compareId = typeof pId === 'bigint' ? pId : BigInt(pId);
-        if (compareId === botRuntimeId) {
-          botPosition = packet.position;
-        }
-      }
-    });
-
     client.on('spawn', () => {
-      console.log(`[+] دخل ${botOptions.username} إلى السيرفر وهو الآن مستقر!`);
+      console.log(`[+] دخل ${botOptions.username} إلى السيرفر وهو الآن مستقر تماماً!`);
       
+      // إرسال رسالة ترحيبية خفيفة للتأكيد
       setTimeout(() => {
-        startLookAFKLoop();
-      }, 8000);
+        sendBotChat("👋 بوت الحماية من الطرد نشط الآن 24/7");
+        startSafeAFKLoop();
+      }, 5000);
     });
 
     client.on('error', (err) => {
@@ -77,42 +60,47 @@ function startBot() {
   }
 }
 
-// حلقة الالتفات والتحديق العشوائي (آمنة تماماً من أخطاء الـ BigInt وتمنع الطرد)
-function startLookAFKLoop() {
+// حلقة تفاعل آمنة تماماً وخالية 100% من حزم الـ Move المكسورة
+function startSafeAFKLoop() {
   if (afkInterval) clearInterval(afkInterval);
 
-  console.log(`[⚙️] تم تفعيل حلقة التحديق والالتفات العشوائي الآمنة.`);
+  console.log(`[⚙️] تم تفعيل حلقة التفاعل الآمن (أرجحة اليد والتنبيه الذكي).`);
 
   afkInterval = setInterval(() => {
     if (!client || !botRuntimeId) return;
 
-    // توليد زوايا رؤية عشوائية طبيعية (التفات يميناً ويساراً وللأعلى والأسفل)
-    const randomYaw = parseFloat(Math.random() * 360);
-    const randomPitch = parseFloat((Math.random() * 30) - 15);
-
     try {
-      // إرسال حزمة حركة تعتمد فقط على الالتفات في نفس النقطة بدون تغيير الموقع
-      client.queue('move_player', {
-        runtime_id: botRuntimeId,
-        position: {
-          x: parseFloat(botPosition.x),
-          y: parseFloat(botPosition.y),
-          z: parseFloat(botPosition.z)
-        },
-        pitch: randomPitch,
-        yaw: randomYaw,
-        head_yaw: randomYaw,
-        mode: 0, // الوضع العادي
-        on_ground: true,
-        riding_runtime_id: 0n,
-        teleport_cause: 0,
-        teleport_item_id: 0,
-        tick: 0n
+      // 1. أرجحة يد اللاعب (Swing Arm) - حزمة خفيفة جداً وتمنع الـ AFK قطعياً
+      client.queue('animate', {
+        action_id: 1, // 1 تعني أرجحة اليد (No BigInt needed!)
+        runtime_id: botRuntimeId
       });
+
+      // 2. إرسال أمر وهمي خفيف غير مرئي للشات للتأكيد الإضافي على النشاط كل دقيقة تقريباً
+      if (Math.random() > 0.7) {
+        sendBotChat("/help"); // أو أي أمر بسيط لا يزعج اللاعبين في الشات
+      }
+
     } catch (e) {
-      console.error(`[!] فشل إرسال حزمة الالتفات:`, e.message);
+      console.error(`[!] فشل إرسال حزمة التفاعل المجتمعي:`, e.message);
     }
-  }, 7000); // تكرار كل 7 ثوانٍ
+  }, 15000); // تكرار كل 15 ثانية (آمن وخفيف جداً على السيرفر)
+}
+
+function sendBotChat(message) {
+  if (!client) return;
+  try {
+    client.queue('text', {
+      type: 'chat',
+      needs_translation: false,
+      source_name: botOptions.username,
+      xuid: '',
+      platform_chat_id: '',
+      message: message
+    });
+  } catch (e) {
+    // تجاهل خطأ الشات إذا حدث
+  }
 }
 
 function triggerRetry() {
