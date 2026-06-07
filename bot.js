@@ -2,60 +2,60 @@ const bedrock = require('bedrock-protocol');
 
 // إعدادات الاتصال بالسيرفر
 const botOptions = {
-  host: 'Bluelightmine.aternos.me', // الآي بي الخاص بسيرفرك
-  port: 51069,                      // المنفذ الخاص بسيرفرك
-  username: 'RealPlayer_AFK',       // اسم البوت
-  offline: true,                    // مفعل للسيرفرات المكركة
-  version: '1.21.130'               // الإصدار المطابق للسيرفر
+  host: 'Bluelightmine.aternos.me', 
+  port: 51069,                      
+  username: 'RealPlayer_AFK',       
+  offline: true,                    
+  version: '1.21.130'               
 };
 
 let client = null;
 let retryTimer = null;
 let afkInterval = null;
 
-// متغيرات حفظ موقع البوت لمنع الكراش
 let botRuntimeId = null;
 let botPosition = { x: 0, y: 0, z: 0 };
+let moveToggle = false; // للتبديل بين الحركة للأمام والخلف
 
 function startBot() {
-  // تنظيف أي مؤقتات أو حلقات قديمة عند إعادة التشغيل
   if (retryTimer) clearTimeout(retryTimer);
   if (afkInterval) clearInterval(afkInterval);
   
-  console.log(`[اتصال] جاري محاولة الاتصال بسيرفر البدروك إصدار ${botOptions.version}...`);
+  console.log(`[اتصال] جاري الدخول إلى سيرفر البدروك المطور...`);
 
   try {
     client = bedrock.createClient(botOptions);
 
-    // 1. التقاط إحداثيات وهواية البوت بأمان فور توليد العالم لتفادي خطأ الـ Undefined
+    // إلغاء الـ undefined وقراءة المعرف والموقع بأكثر من طريقة آمنة
     client.on('start_game', (packet) => {
+      botRuntimeId = packet.runtime_id || packet.entity_id;
+      
       if (packet.player_position) {
         botPosition = { ...packet.player_position };
+      } else if (packet.position) {
+        botPosition = { ...packet.position };
       }
-      botRuntimeId = packet.runtime_id;
+      
       console.log(`[معلومات] تم التعرف على معرف البوت بنجاح: ${botRuntimeId}`);
     });
 
-    // 2. تحديث الإحداثيات إذا قام السيرفر بنقل البوت (تجنباً للـ bad_packet)
     client.on('move_player', (packet) => {
-      if (botRuntimeId && packet.runtime_id === botRuntimeId) {
+      if (botRuntimeId && (packet.runtime_id === botRuntimeId || packet.entity_id === botRuntimeId)) {
         botPosition = packet.position;
       }
     });
 
-    // 3. عند نجاح رسوبن البوت واستقرار الاتصال
     client.on('spawn', () => {
       console.log(`[+] دخل ${botOptions.username} إلى السيرفر وهو الآن مستقر!`);
       
-      // تأخير مريح لمدة 5 ثوانٍ قبل تشغيل الحركة العشوائية لحماية البوت من الطرد الفوري
+      // مهلة أطول (8 ثوانٍ) لضمان تحميل الخريطة والمودات بالكامل قبل بدء الحركة
       setTimeout(() => {
-        startSmartAFKLoop();
-      }, 5000);
+        startNaturalAFKLoop();
+      }, 8000);
     });
 
-    // معالجة أخطاء الشبكة أو إغلاق السيرفر
     client.on('error', (err) => {
-      console.error(`[تنبيه] حدث خطأ في الاتصال أو السيرفر مطفأ (${err.message})`);
+      console.error(`[تنبيه] حدث خطأ في الاتصال (${err.message})`);
       triggerRetry();
     });
 
@@ -65,7 +65,7 @@ function startBot() {
     });
 
     client.on('kick', (packet) => {
-      console.log(`[-] تم طرد البوت. السبب: ${packet.reason}`);
+      console.log(`[-] تم طرد البوت. السبب: ${packet.reason || JSON.stringify(packet)}`);
       triggerRetry();
     });
 
@@ -75,30 +75,33 @@ function startBot() {
   }
 }
 
-// حلقة الحركة العشوائية الذكية (تمنع طرد الـ AFK بدون كراش وبدون رصد الـ Anti-Cheat)
-function startSmartAFKLoop() {
+// حلقة حركة طبيعية تخدع حماية الـ BedWars والأنتيشيت
+function startNaturalAFKLoop() {
   if (afkInterval) clearInterval(afkInterval);
 
-  console.log(`[⚙️] تم تفعيل حلقة الحركة والالتفات العشوائي الذكي لمنع الـ AFK.`);
+  console.log(`[⚙️] تم تفعيل حلقة المشي والالتفات الطبيعي المناهض للأنتيشيت.`);
 
   afkInterval = setInterval(() => {
     if (!client || !botRuntimeId) return;
 
-    // توليد زوايا رؤية عشوائية (التفات يميناً ويساراً ولأعلى وأسفل)
+    // زوايا رؤية طبيعية
     const randomYaw = Math.random() * 360;
-    const randomPitch = (Math.random() * 40) - 20; // زاوية بين -20 و 20
+    const randomPitch = (Math.random() * 20) - 10;
 
-    // إحداث حركة اهتزازية خفيفة جداً وآمنة في نفس الموقع
-    const microMovement = {
-      x: botPosition.x + (Math.random() * 0.1 - 0.05),
+    // تبديل الحركة: مرة يتقدم 0.3 بلوكة ومرة يعود لمكانه لمنع الطرد
+    moveToggle = !moveToggle;
+    const offset = moveToggle ? 0.3 : -0.3;
+
+    const naturalMovement = {
+      x: botPosition.x + (Math.sin(randomYaw * Math.PI / 180) * offset),
       y: botPosition.y,
-      z: botPosition.z + (Math.random() * 0.1 - 0.05)
+      z: botPosition.z + (Math.cos(randomYaw * Math.PI / 180) * offset)
     };
 
     try {
       client.queue('move_player', {
         runtime_id: botRuntimeId,
-        position: microMovement,
+        position: naturalMovement,
         pitch: randomPitch,
         yaw: randomYaw,
         head_yaw: randomYaw,
@@ -110,9 +113,9 @@ function startSmartAFKLoop() {
         tick: 0
       });
     } catch (e) {
-      console.error(`[!] فشل إرسال حزمة الحركة العشوائية:`, e.message);
+      console.error(`[!] فشل إرسال حزمة المشي التلقائي:`, e.message);
     }
-  }, 4000); // يتمرن ويتحرك كل 4 ثوانٍ
+  }, 6000); // تكرار كل 6 ثوانٍ (وقت مثالي وآمن جداً للسيرفرات)
 }
 
 function triggerRetry() {
@@ -132,5 +135,4 @@ function triggerRetry() {
   }, 30000);
 }
 
-// انطلاق البوت
 startBot();
