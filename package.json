@@ -1,11 +1,1 @@
-{
-  "name": "bedrock-afk-bot",
-  "version": "1.0.0",
-  "main": "bot.js",
-  "dependencies": {
-    "bedrock-protocol": "latest"
-  },
-  "scripts": {
-    "start": "node bot.js"
-  }
-}
+
