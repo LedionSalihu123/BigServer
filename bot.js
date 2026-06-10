@@ -1,12 +1,11 @@
 const bedrock = require('bedrock-protocol');
 
-// إعدادات الاتصال بالسيرفر
 const options = {
-    host: 'Bluelightmine.aternos.me',        // ضع هنا الآيبي الخاص بسيرفرك (بدون بورت)
-    port: 51069,                   // البورت الافتراضي لبيدروك
+    host: 'Bluelightmine.aternos.me',        // ضع هنا الآيبي الخاص بسيرفرك
+    port: 51069,                   // البورت
     username: 'BedrockBot',        // اسم البوت
-    version: '1.21.20',            // الإصدار المطلوب بدقة
-    offline: true                  // اجعلها true إذا كان السيرفر مكرك، أو false إذا كان يحتاج حساب إكس بوكس رسمي
+    version: '1.21.20',            // الإصدار
+    offline: true                  
 };
 
 function createBot() {
@@ -18,31 +17,66 @@ function createBot() {
         client.on('join', () => {
             console.log("تم دخول البوت إلى سيرفر البيدروك بنجاح وهو الآن داخل العالم!");
             
-            // للبقاء نشطاً ومنع الطرد (Anti-AFK)
-            // بروتوكول البيدروك يحافظ على الاتصال تلقائياً، ولكن سنطبع رسالة كل دقيقة للتأكد من عمله
+            // وظيفية Anti-AFK مطورة: إرسال حزمة حركة وهمية (تغيير زاوية الرأس يميناً ويساراً) كل 20 ثانية لمنع الطرد
+            let lookToggle = false;
             setInterval(() => {
-                console.log("البوت مستقر وخلال حالة الاتصال المستمر...");
-            }, 60000);
+                if (client.status === 'playing' || client.state === 'play') {
+                    // إرسال حزمة الالتفات للسيرفر لإثبات النشاط
+                    client.write('player_auth_input', {
+                        pitch: 0,
+                        yaw: lookToggle ? 90 : 0,
+                        position: { x: 0, y: 0, z: 0 },
+                        move_vector: { x: 0, z: 0 },
+                        head_yaw: lookToggle ? 90 : 0,
+                        input_data: {
+                            _value: 0,
+                            ascend: false,
+                            descend: false,
+                            north_jump: false,
+                            jump_down: false,
+                            sprint_down: false,
+                            change_height: false,
+                            jumping: false,
+                            auto_jumping_in_water: false,
+                            sneaking_down: false,
+                            sneak_down: false,
+                            up_left: false,
+                            up_right: false,
+                            want_up: false,
+                            want_down: false,
+                            want_down_slow: false,
+                            want_up_slow: false,
+                            is_grabbing_add_actor_packet: false,
+                            is_slow_sprinting: false
+                        },
+                        input_mode: 'mouse',
+                        play_mode: 'screen',
+                        interaction_model: 'touch',
+                        gaze_direction: { x: 0, y: 0, z: 0 },
+                        tick: 0,
+                        delta: { x: 0, y: 0, z: 0 }
+                    });
+                    lookToggle = !lookToggle;
+                    console.log("تم إرسال حزمة حركة وهمية (Anti-AFK)");
+                }
+            }, 20000);
         });
 
         client.on('text', (packet) => {
-            // طباعة الشات في الـ Actions للاطمئنان على البوت
-            if (packet.message) {
-                console.log(`[شات السيرفر]: ${packet.message}`);
-            }
+            if (packet.message) console.log(`[شات السيرفر]: ${packet.message}`);
         });
 
         client.on('close', () => {
-            console.log("تم فصل البوت عن السيرفر. جاري إعادة الاتصال بعد 15 ثانية...");
+            console.log("تم فصل البوت. إعادة الاتصال بعد 15 ثانية...");
             setTimeout(createBot, 15000);
         });
 
         client.on('error', (err) => {
-            console.log("حدث خطأ في الاتصال: ", err.message);
+            console.log("حدث خطأ: ", err.message);
         });
 
     } catch (error) {
-        console.log("فشل في إنشاء العميل، جاري المحاولة مجدداً...", error.message);
+        console.log("فشل في تشغيل العميل: ", error.message);
         setTimeout(createBot, 15000);
     }
 }
