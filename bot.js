@@ -62,22 +62,20 @@ function createBot() {
 
         // دالة موحدة للتعامل مع الفصل ومنع التكرار والتداخل
         const handleDisconnect = (reason) => {
-            if (isDisconnected) return; // إذا تم تفعيل الفصل مسبقاً لا تفعل شيئاً
+            if (isDisconnected) return; 
             isDisconnected = true;
 
             console.log(`تم قطع الاتصال بالسيرفر! (السبب: ${reason}). جاري التنظيف...`);
             
-            // إيقاف العداد المؤقت فوراً
             if (afkInterval) clearInterval(afkInterval);
             
-            // تدمير وإنهاء العميل القديم نهائياً لمنع بقائه كـ Ghost
             try {
                 client.end();
             } catch (e) {}
 
-            // الانتظار 35 ثانية كاملة ليتأكد السيرفر من خروج البوت تماماً ومسحه من الذاكرة قبل الدخول مجدداً
-            console.log("سيتأخر بدء الاتصال الجديد لـ 35 ثانية لتفادي مشكلة البوت المزدوج...");
-            setTimeout(createBot, 60000);
+            // الانتظار 30 ثانية كاملة ليتأكد السيرفر من خروج البوت تماماً ومسحه من الذاكرة قبل الدخول مجدداً
+            console.log("سيتأخر بدء الاتصال الجديد لـ 30 ثانية لتفادي مشكلة البوت المزدوج...");
+            setTimeout(createBot, 30000);
         };
 
         client.on('close', () => handleDisconnect('إغلاق القناة close'));
@@ -85,7 +83,8 @@ function createBot() {
 
     } catch (error) {
         console.log("فشل كلي في بدء تشغيل العميل: ", error.message);
-        setTimeout(createBot, 60000);
+        console.log("جاري إعادة المحاولة الإجبارية بعد 30 ثانية...");
+        setTimeout(createBot, 30000);
     }
 }
 
