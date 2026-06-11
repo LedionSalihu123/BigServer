@@ -4,9 +4,9 @@ on:
   push:
     branches: [ main ]
   schedule:
-    # يعمل تلقائياً كل 4 ساعات لتفادي الـ 6 ساعات كحد أقصى لـ GitHub
+    # عامل أمان إضافي في حال تعطلت اللوب لأي سبب طارئ، يعمل الكرون كدعم كل 4 ساعات
     - cron: '0 */4 * * *'
-  workflow_dispatch: # يتيح لك تشغيله يدوياً أيضاً
+  workflow_dispatch: # ضروري جداً لكي يتمكن الووركفلاو من استدعاء نفسه تلقائياً
 
 jobs:
   run-bot:
@@ -25,11 +25,23 @@ jobs:
       run: npm install
 
     - name: Cancel Previous Runs
-      # يقوم هذا الأكشن بإلغاء أي ووركفلاو قديم يعمل حالياً لنفس الرابط لمنع التداخل
+      # يلغي أي مهمة قديمة كانت تعمل لنفس هذا الووركفلاو منعاً لتراكم البوتات وظهور مشكلة "البوتين"
       uses: styfle/cancel-workflow-action@0.11.0
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Start Minecraft Bot
-      # تشغيل البوت، وسيستمر في العمل حتى تنتهي الـ 4 ساعات ويتم استبداله بالووركفلاو القادم
+      # قفل الخطوة على 240 دقيقة (4 ساعات). بعد انتهاء الوقت، سيتوقف البوت وينتقل للأكشن التالي
+      timeout-minutes: 240
       run: npm start
+      continue-on-error: true # لضمان أنه حتى لو فصل البوت بـ Error، يستمر وينتقل لتشغيل الووركفلاو التالي
+
+    - name: Trigger Next Loop (Chain Workflow)
+      # هذه الخطوة السحرية: تستدعي غيتهاب لتشغيل ووركفلاو جديد فوراً قبل إغلاق الحالي
+      if: always() # تعمل دائماً حتى لو فشلت خطوة البوت أو انتهى وقتها
+      run: |
+        curl -X POST \
+          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          https://api.github.com/repos/${{ github.repository }}/actions/workflows/main.yml/dispatches \
+          -d '{"ref":"main"}'
