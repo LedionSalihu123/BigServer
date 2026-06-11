@@ -3,7 +3,7 @@ name: Minecraft Bot 24/7
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: # الاعتماد الكلي على التشغيل الذاتي واليدوي لمنع التداخل
+  workflow_dispatch: # الاعتماد الكلي على التشغيل الذاتي واليدوي
 
 permissions:
   actions: write
@@ -25,22 +25,24 @@ jobs:
     - name: Install Dependencies
       run: npm install
 
-    - name: Force Cancel All Previous Runs
-      # استخدام أداة GitHub الرسمية لقتل أي ووركفلاو قديم يعمل حالياً فوراً لمنع التضاعف
+    - name: Kill and Purge All Previous Runs
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        echo "جاري فحص وإغلاق أي مهمة قديمة تعمل حالياً لضمان بقاء بوت واحد..."
-        active_runs=$(gh run list --workflow=main.yml --status=in_progress --json databaseId --jq '.[].databaseId')
-        for run_id in $active_runs; do
+        echo "جاري فحص وتصفية المستودع من أي مهمة قديمة تعمل حالياً..."
+        # جلب جميع المعرفات للمهام التي في حالة العمل (in_progress) أو الانتظار (queued)
+        all_runs=$(gh run list --workflow=main.yml --json databaseId,status -q '.[] | select(.status=="in_progress" or .status=="queued") | .databaseId')
+        
+        for run_id in $all_runs; do
           if [ "$run_id" != "$GITHUB_RUN_ID" ]; then
-            echo "إغلاق المهمة القديمة ذات الرقم: $run_id"
-            gh run cancel $run_id
+            echo "🚨 تم كشف مهمة زائدة! جاري إغلاق المهمة رقم: $run_id"
+            gh run cancel $run_id || true
+            sleep 2 # وقت قصير للتأكد من إتمام الإلغاء بالسيرفر
           fi
         done
 
     - name: Start Minecraft Bot
-      # تثبيت الوقت على 230 دقيقة (أقل من 4 ساعات بقليل) كأمان تام قبل تدوير اللوب
+      # قفل التشغيل لـ 230 دقيقة (أقل من 4 ساعات)
       timeout-minutes: 230
       run: npm start
       continue-on-error: true
@@ -48,7 +50,7 @@ jobs:
     - name: Trigger Next Loop (Chain Workflow)
       if: always()
       run: |
-        echo "بدء مهمة جديدة وتمرير اللوب..."
+        echo "إرسال إشارة لتشغيل مهمة جديدة ونظيفة..."
         curl -X POST \
           -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
           -H "Accept: application/vnd.github.v3+json" \
