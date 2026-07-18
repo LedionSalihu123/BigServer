@@ -4,12 +4,12 @@ const options = {
     host: 'CreativeServer1253.aternos.me',        
     port: 45928,                            
     username: 'BedrockBot',                 
-    version: '1.26.33.2',                     
+    version: '1.26.33',                     
     offline: true                           
 };
 
 function createBot() {
-    console.log("جاري تشغيل البوت والاتصال بسيرفر بيدروك (إصدار 1.26.33.2)...");
+    console.log("جاري تشغيل البوت والاتصال بسيرفر بيدروك (إصدار 1.26.33)...");
 
     try {
         const client = bedrock.createClient(options);
