@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node bot.js"
   },
+{
   "dependencies": {
-    "bedrock-protocol": "*"
+    "bedrock-protocol": "^3.40.0"
   }
 }
